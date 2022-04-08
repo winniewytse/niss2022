@@ -1,0 +1,21 @@
+---
+title: "data explore"
+author: "Yichi Zhang"
+date: "4/8/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+## import data and modify format
+dat <- read_excel("NAEP_read_dat.xls",  range = cell_rows(3:57), col_types = c("guess", rep("numeric",22)))%>%
+  as.data.frame()
+dat[1, ] <- c("State", rep(c("Estimates", "SE"), 11))
+colnames(dat) <- c("State", rep(c(1998, 2002, seq(2003,2019, by = 2)),each = 2))
+```
+
