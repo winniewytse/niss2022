@@ -15,7 +15,38 @@ library(readxl)
 ## import data and modify format
 dat <- read_excel("NAEP_read_dat.xls",  range = cell_rows(3:57), col_types = c("guess", rep("numeric",22)))%>%
   as.data.frame()
-dat[1, ] <- c("State", rep(c("Estimates", "SE"), 11))
-colnames(dat) <- c("State", rep(c(1998, 2002, seq(2003,2019, by = 2)),each = 2))
+# dat[1, ] <- c("State", rep(c("Estimates", "SE"), 11))
+# colnames(dat) <- c("State", rep(c(1998, 2002, seq(2003,2019, by = 2)), each = 2))
+colnames(dat)[-1] <- sort(c(paste0(c(1998, 2002, seq(2003,2019, by = 2)), "_est"), paste0(c(1998, 2002, seq(2003,2019, by = 2)), "_SE")))
+dat <- dat[-1,]
 ```
+
+```{r}
+## change data to long format for graph
+dat_long <- dat %>%
+  pivot_longer(!State, names_to = c("year","par"), names_sep = "_", values_to = "score")
+dat_long <- within(dat_long,
+                   c(State <- factor(State),
+                     year <- as.numeric(year),
+                     par <- factor(par, labels = c("est", "SE"))))
+```
+
+```{r}
+ggplot(data = dat_long %>% filter(par =="est"), aes(x = year, y = score, color = State, group = State)) +
+  geom_line()
+longplot <- function(variable){
+  dat = dat_long %>% filter(par == "est", State %in% variable)
+  ggplot(data = dat, aes(x = year, y = score, color = State, group = State)) +
+  geom_line()
+}
+# test 
+longplot(c("Alaska", "Nebraska"))
+```
+
+```{r}
+dat[dat$State == "Alaska",]
+dat_long%>%
+  filter(State == "Alaska")%>% table()
+```
+
 
