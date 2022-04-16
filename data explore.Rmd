@@ -45,8 +45,16 @@ longplot(c("Alaska", "Nebraska"))
 
 ```{r}
 dat[dat$State == "Alaska",]
-dat_long%>%
-  filter(State == "Alaska")%>% table()
+dat_long %>%
+  pivot_wider(names_from = "par", values_from = score) %>%
+  knitr::kable()
+tab_se <- function(variable){
+  long_tab <- dat_long %>%
+  pivot_wider(names_from = "par", values_from = score) 
+  tab_se %>% 
+    filter(State == variable)%>%
+    knitr::kable()
+}
 ```
 
 
