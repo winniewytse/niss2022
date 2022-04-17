@@ -14,6 +14,8 @@ library(readxl)
 library(viridis)
 # remotes::install_github("JVAdams/jvamisc")
 library(jvamisc)
+# devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
 ```
 
 ```{r}
@@ -32,21 +34,24 @@ dat_long <- within(dat_long,
                    c(State <- factor(State),
                      year <- factor(year),
                      par <- factor(par, labels = c("est", "SE")))) %>%
-  mutate(state = tolower(str_replace_all(
-    str_replace_all(State, "[[:digit:]][[:punct:]]", ""), 
+  mutate(State = (str_replace_all(
+    str_replace_all(State, "[[:digit:]][[:punct:]]", ""),
     "[\\\\]", "")
-  ), 
+  ),
+  state = tolower(State), 
   abbr = state.abb[match(state, tolower(state.name))])
 ```
 
 ```{r}
 # data frame for creating a US map
+# dat_map <- dat_long %>%
+#   filter(!state %in% c("United States", 
+#                       "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
+#   merge(map_data("state") %>% rename(state = region), ., by = "state", all.x = TRUE)
 dat_map <- dat_long %>%
-  filter(!state %in% c("United States", 
+  filter(!State %in% c("United States", 
                       "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
-  merge(map_data("state") %>%
-          rename(state = region), 
-        ., by = "state", all.x = TRUE)
+  right_join(fifty_states %>% rename(state = id), by = "state", all.x = TRUE)
 ```
 
 
@@ -75,7 +80,7 @@ dat_map <- dat_map %>%
 # test <- map$data
 # tnames <- aggregate(cbind(x, y) ~ abbr, 
 #                     data = test, FUN = function(x) mean(range(x)))
-tnames <- aggregate(cbind(long, lat) ~ abbr, 
+labels <- aggregate(cbind(long, lat) ~ abbr,
                     data = dat_map, FUN = function(x) mean(range(x)))
 ```
 
@@ -95,10 +100,11 @@ tnames <- aggregate(cbind(long, lat) ~ abbr,
 #   theme(legend.position = "bottom",
 #         legend.key.width = unit(3, "cm"),
 #         legend.key.height = unit(.2, "cm"))
+  
 ggplot(data = dat_map, aes(x = long, y = lat)) + 
   geom_polygon(aes(fill = score, group = group)) +
   scale_fill_viridis(option = "G") +
-  geom_label(data = tnames, aes(long, lat, label = abbr), size = 2.5, 
+  geom_label(data = labels, aes(long, lat, label = abbr), size = 2.5, 
              label.padding = unit(.15, "lines"), 
              alpha = .7) +
   theme_void() +
@@ -123,7 +129,14 @@ selected <- latlong2(data.frame(x = xcor, y = ycor))
 
 ```{r}
 dat_long %>%
-  filter(state == selected) 
+  filter(state == selected) %>%
+  pivot_wider(names_from = par, values_from = score) %>%
+  select(!c(state, abbr)) %>%
+    mutate(`Confidence Interval` = paste0(
+    "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
+  )) %>%
+  rename(Year = year, Score = est, `Standard Error` = SE,) %>%
+  mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
 ```
 
 

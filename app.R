@@ -9,6 +9,9 @@ library(readxl)
 library(viridis)
 # remotes::install_github("JVAdams/jvamisc")
 library(jvamisc)
+# devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+
 ############Import Data#########################################################
 dat <- read_excel("NAEP_read_dat.xls",  range = cell_rows(3:57), col_types = c("guess", rep("numeric",22)))%>%
   as.data.frame()
@@ -21,7 +24,13 @@ dat_long <- dat %>%
 dat_long <- within(dat_long,
                    c(State <- factor(State),
                      year <- factor(year),
-                     par <- factor(par, labels = c("est", "SE")))) #%>%
+                     par <- factor(par, labels = c("est", "SE")))) %>%
+  mutate(State = (str_replace_all(
+    str_replace_all(State, "[[:digit:]][[:punct:]]", ""),
+    "[\\\\]", "")
+  ),
+  state = tolower(State), 
+  abbr = state.abb[match(state, tolower(state.name))])
 
 longplot <- function(variable){
   dat = dat_long %>% filter(par == "est", State %in% variable)
@@ -38,17 +47,10 @@ tab_se <- function(variable){
     filter(State %in% variable)
 }
 
-dat_clean <- dat_long %>%
-  mutate(state = tolower(str_replace_all(
-    str_replace_all(State, "[[:digit:]][[:punct:]]", ""),
-    "[\\\\]", "")
-  ),
-  abbr = state.abb[match(state, tolower(state.name))])
-
-dat_map <- dat_clean %>%
-  filter(!state %in% c("United States", 
+dat_map <- dat_long %>%
+  filter(!State %in% c("United States", 
                        "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
-  merge(map_data("state") %>% rename(state = region), ., by = "state", all.x = TRUE)
+  right_join(fifty_states %>% rename(state = id), by = "state", all.x = TRUE)
 
 ############Shiny App###########################################################
 ui <- dashboardPage(
@@ -139,12 +141,12 @@ ui <- dashboardPage(
                           solidHeader = FALSE,
                           width = 12,
                           tableOutput("table"))
-                        )
-                        
+              )
+              
       )
       #3rd tab item parent
-      )
     )
+  )
 )
 
 server <- function(input, output, session) {
@@ -158,19 +160,24 @@ server <- function(input, output, session) {
     tab_se(var_sel())
   })
   
+  #### Heatmap ####
+  
+  # filter data for the selected year
   map_df <- reactive({
     dat_map %>%
       filter(year == input$year, par == "est")
   })
+  # determine the locations of the label of each State 
   labels <- reactive({
     aggregate(cbind(long, lat) ~ abbr, 
               data = map_df(), FUN = function(x) mean(range(x)))
   })
+  # create a US heatmap
   output$usmap <- renderPlot({
     ggplot(data = map_df(), aes(x = long, y = lat)) + 
       geom_polygon(aes(fill = score, group = group)) +
       scale_fill_viridis(option = "G") +
-      geom_label(data = labels(), aes(long, lat, label = abbr), size = 2.5, 
+      geom_label(data = labels(), aes(long, lat, label = abbr), size = 3, 
                  label.padding = unit(.15, "lines"), 
                  alpha = .7) +
       theme_void() +
@@ -182,22 +189,34 @@ server <- function(input, output, session) {
             legend.key.width = unit(3, "cm"),
             legend.key.height = unit(.2, "cm"))
   })
+  # stores reactive values from on-click
   click_data <- reactiveValues(trigger = 0, x = NA, y = NA)
+  # observe the change in the reactive values from on-click
   observe({
     req(input$plot_click)
     isolate(click_data$trigger <- 1)
     click_data$x <- input$plot_click$x
     click_data$y <- input$plot_click$y
   })
+  # create a table for the selected State
   output$info <- renderTable({
     selected <- ifelse(click_data$trigger,
                        latlong2(data.frame(x = click_data$x,
                                            y = click_data$y)),
                        NA)
+    # if no on-click acticity, prompt users to select a State
     if (is.na(selected)) {
       data.frame(Details = "Select a state to view details. ")
     } else {
-      dat_clean %>% filter(state == selected)
+      dat_long %>%
+        filter(state == selected) %>%
+        pivot_wider(names_from = par, values_from = score) %>%
+        select(!c(state, abbr)) %>%
+        mutate(`Confidence Interval` = paste0(
+          "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
+        )) %>%
+        rename(Year = year, Score = est, `Standard Error` = SE,) %>%
+        mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
     }
   })
 }
