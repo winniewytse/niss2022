@@ -1,0 +1,189 @@
+---
+title: "Heatmaps"
+author: "Winnie Wing-Yee Tse"
+date: '2022-04-16'
+output: pdf_document
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(maps)
+library(usmap)
+library(readxl)
+library(viridis)
+# remotes::install_github("JVAdams/jvamisc")
+library(jvamisc)
+```
+
+```{r}
+dat <- read_excel(here::here("NAEP_read_dat.xls"),
+                  range = cell_rows(3:57),
+                  col_types = c("guess", rep("numeric", 22))) %>%
+  as.data.frame()
+# dat[1, ] <- c("State", rep(c("Estimates", "SE"), 11))
+# colnames(dat) <- c("State", rep(c(1998, 2002, seq(2003,2019, by = 2)), each = 2))
+colnames(dat)[-1] <- sort(c(paste0(c(1998, 2002, seq(2003, 2019, by = 2)), "_est"), 
+                            paste0(c(1998, 2002, seq(2003, 2019, by = 2)), "_SE")))
+dat <- dat[-1,]
+dat_long <- dat %>%
+  pivot_longer(!State, names_to = c("year","par"), names_sep = "_", values_to = "score")
+dat_long <- within(dat_long,
+                   c(State <- factor(State),
+                     year <- factor(year),
+                     par <- factor(par, labels = c("est", "SE")))) %>%
+  mutate(state = tolower(str_replace_all(
+    str_replace_all(State, "[[:digit:]][[:punct:]]", ""), 
+    "[\\\\]", "")
+  ), 
+  abbr = state.abb[match(state, tolower(state.name))])
+```
+
+```{r}
+# data frame for creating a US map
+dat_map <- dat_long %>%
+  filter(!state %in% c("United States", 
+                      "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
+  merge(map_data("state") %>%
+          rename(state = region), 
+        ., by = "state", all.x = TRUE)
+```
+
+
+
+```{r eval=FALSE}
+# example
+map <- plot_usmap(data = dat_map %>%
+                    filter(year == 1998, par == "est"), 
+                  values = "score", labels = T, size = .1) #+
+  labs(title = paste0("Average NAEP Reading Scale Score of 8th-grade Public School Students in ",
+                      1998),
+       fill = "Score") +
+  scale_fill_viridis(option = "G") +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(3, "cm"),
+        legend.key.height = unit(.2, "cm"))
+```
+
+```{r}
+dat_map <- dat_map %>%
+  filter(year == 1998, par == "est")
+```
+
+
+```{r}
+# test <- map$data
+# tnames <- aggregate(cbind(x, y) ~ abbr, 
+#                     data = test, FUN = function(x) mean(range(x)))
+tnames <- aggregate(cbind(long, lat) ~ abbr, 
+                    data = dat_map, FUN = function(x) mean(range(x)))
+```
+
+
+```{r}
+# ggplot(data = test, aes(x = x, y = y)) + 
+#   geom_polygon(aes(fill = score, group = group)) +
+#   scale_fill_viridis(option = "G") +
+#   geom_label(data = tnames, aes(x, y, label = abbr), size = 2.5, 
+#              label.padding = unit(.15, "lines"), 
+#              alpha = .7) +
+#   theme_void() +
+#   labs(title = paste0(
+#     "Average NAEP Reading Scale Score of 8th-grade Public School Students in ",
+#     1998
+#     )) + 
+#   theme(legend.position = "bottom",
+#         legend.key.width = unit(3, "cm"),
+#         legend.key.height = unit(.2, "cm"))
+ggplot(data = dat_map, aes(x = long, y = lat)) + 
+  geom_polygon(aes(fill = score, group = group)) +
+  scale_fill_viridis(option = "G") +
+  geom_label(data = tnames, aes(long, lat, label = abbr), size = 2.5, 
+             label.padding = unit(.15, "lines"), 
+             alpha = .7) +
+  theme_void() +
+  labs(title = paste0(
+    "Average NAEP Reading Scale Score of 8th-grade Public School Students in ",
+    1998
+    )) + 
+  theme(legend.position = "bottom",
+        legend.key.width = unit(3, "cm"),
+        legend.key.height = unit(.2, "cm"))
+```
+
+
+```{r}
+xcor <- -119.441932480155 
+ycor <- 36.1363742951862
+```
+
+```{r}
+selected <- latlong2(data.frame(x = xcor, y = ycor))
+```
+
+```{r}
+dat_long %>%
+  filter(state == selected) 
+```
+
+
+## Archived code
+
+```{r}
+# data frame for creating a US map
+dat_map <- dat_long %>%
+  mutate(state = tolower(str_replace_all(
+    str_replace_all(State, "[[:digit:]][[:punct:]]", ""), 
+    "[\\\\]", "")
+  )) %>%
+  filter(!state %in% c("United States", 
+                      "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
+  merge(map_data("state") %>%
+          rename(state = region), 
+        ., by = "state", all.x = TRUE)
+```
+
+```{r}
+dat_map_t <- usmap_transform(dat_map, 
+                             input_names = c("long", "lat"))
+```
+
+
+```{r}
+r <- 6
+testx <- -1567615.3275501
+testy <- -953551.189946142
+map$data %>%
+  mutate(x.approx = round(x, -r), 
+         y.approx = round(y, -r)) %>%
+  left_join(sum, by = "state") %>%
+  filter(x.approx == round(testx, -r) & y.approx == round(testy, -r) &
+           min_x < testx & max_x > testx & min_y < testy & max_y > testy)
+# -1567615.3275501 -953551.189946142
+# -1777002.59872942 -786044.471682958 
+```
+
+```{r}
+sum <- map$data %>%
+  select(x, y, state) %>%
+  group_by(state) %>%
+  summarize(min_x = min(x), 
+            max_x = max(x), 
+            min_y = min(y), 
+            max_y = max(y))
+testx <- -1567615.3275501
+testy <- -953551.189946142
+# -1441982.96484251 -430092.695373692
+```
+
+```{r}
+sum %>%
+  filter(min_x < x & max_x > x & min_y < y & max_y > y)
+```
+
+```{r}
+map$data %>%
+  left_join(sum, by = "state") %>%
+  select(x, y, min_x, max_x, min_y, max_y, state) %>%
+  filter(min_x < x & max_x > x & min_y < y & max_y > y)
+```

@@ -1,0 +1,84 @@
+---
+title: "Explore Table 502.20 (Annual earnings across levels of education)"
+author: "Winnie Wing-Yee Tse"
+date: "4/3/2022"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+Median annual earnings, number, and percentage of full-time year-round workers age 25 and over, by highest level of educational attainment and sex: Selected years, 1990 through 2019
+
+0. Total
+1. Less than 9th grade
+2. Some high school, no completion
+3. High school completion (includes equivalency)
+4. Some college, no degree
+5. Associate's degree
+6. Bachelor's or higher (total)
+7. Bachelor's degree
+8. Master's degree
+9. Professional degree
+10. Doctor's degree
+
+
+```{r data}
+names_col <- c("year", 
+               paste0(c("mean_", "se_"), rep(0:10, each = 2)))
+# Current dollors
+cd_m <- readxl::read_excel("../../data/tabn502.20.xls", 
+                           range = "A10:W31", col_names = names_col)
+cd_f <- readxl::read_excel("../../data/tabn502.20.xls", 
+                           range = "A33:W54", col_names = names_col)
+
+# Constant 2019 dollars
+cd2019_m <- readxl::read_excel("../../data/tabn502.20.xls", 
+                               range = "A57:W78", col_names = names_col)
+cd2019_f <- readxl::read_excel("../../data/tabn502.20.xls", 
+                               range = "A80:W101", col_names = names_col)
+
+# Number of persons with earnings who worked full time, year round (in thousands)
+nft_m <- readxl::read_excel("../../data/tabn502.20.xls", 
+                            range = "A104:W125", col_names = names_col)
+nft_f <- readxl::read_excel("../../data/tabn502.20.xls", 
+                            range = "A127:W148", col_names = names_col)
+
+# Percent of persons with earnings who worked full time, year round
+perft_m <- readxl::read_excel("../../data/tabn502.20.xls", 
+                              range = "A151:W170", col_names = names_col)
+perft_f <- readxl::read_excel("../../data/tabn502.20.xls", 
+                              range = "A172:W191", col_names = names_col)
+```
+
+```{r}
+longtab <- function(widetab) {
+  widetab %>%
+    # force non-numeric symbols to NA
+    mutate_at(vars(year:se_10), as.numeric) %>%
+    pivot_longer(
+      mean_0:se_10, 
+      names_to = c("type", "education"), 
+      values_to = "est", 
+      names_pattern = "(mean|se)_(.*)"
+    ) %>%
+    suppressWarnings()
+}
+```
+
+```{r}
+cd <- data.frame(gender = rep(c("male", "female"), each = nrow(cd_m)), 
+                 rbind(cd_m, cd_f)) %>%
+  longtab()
+cd2019 <- data.frame(gender = rep(c("male", "female"), each = nrow(cd_m)), 
+                 rbind(nft_m, nft_f)) %>%
+  longtab()
+nft_m <- data.frame(gender = rep(c("male", "female"), each = nrow(cd_m)), 
+                 rbind(nft_m, nft_f)) %>%
+  longtab()
+```
+
+
+
