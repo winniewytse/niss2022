@@ -1,4 +1,6 @@
 library(shiny)
+library(tidyverse)
+library(pivottabler)
 library(shinydashboard)
 library(tidyverse)
 library(maps)
@@ -37,6 +39,13 @@ dat_map <- dat_long %>%
   merge(map_data("state") %>%
           rename(state = region), 
         ., by = "state", all.x = TRUE)
+long_tab <- dat_long %>%
+  pivot_wider(names_from = "par", values_from = score) 
+colnames(long_tab) <- c("State", "Year", "Reading Score", "Standard Error")
+tab_se <- function(variable){
+  long_tab %>% 
+    filter(State %in% variable)
+}
 
 ############Shiny App###########################################################
 ui <- dashboardPage(
@@ -69,8 +78,35 @@ ui <- dashboardPage(
                   width = 12,
                   solidHeader = FALSE,
                   p(
-                    "This app is intended to"
-                  ))
+                    "This app is intended to show the average National Assessment of
+                    Educational Progress (NAEP) reading scale score of 8th-grade
+                    public school students by state. This dataset covers the time from 
+                    1998 to 2019. The first page shows students' reading scale scores by a heat map, 
+                    which you can click on the specific state and obtain the average reading scores of students 
+                    in that state. On the second page, you can select you interested states (single or multiple), 
+                    and view the trend over time. You will get a line graph and a table that captures both the 
+                    scores its standard errors."
+                  )),
+                
+                box(
+                  title = "Reference",
+                  status = "primary",
+                  width = 12,
+                  solidHeader = FALSE,
+                  p("The data for the contest is from the Digest of Education Statistics 
+                    from the National Center for Education Statistics  
+                    (https://nces.ed.gov/programs/digest/current_tables.asp). "
+                  )),
+                
+                box(
+                  title = "Note",
+                  status = "primary",
+                  width = 12,
+                  solidHeader = FALSE,
+                  p(
+                    "If you have any questions, please email us at yzhang97@usc.edu and wingyeet@usc.edu ."
+                  )
+                )
               )
               #1st tab item parent
       ),
@@ -83,25 +119,40 @@ ui <- dashboardPage(
               #2nd tab item parent
       ), 
       tabItem(tabName = "longitudinal",
-              fluidPage(selectInput("variable", label = "Variable", choices = c(levels(dat_long$State))),
-                        verbatimTextOutput("Graphs"),
-                        plotOutput("graph")),
-              tableOutput("table"),
-      ))
-    #3rd tab item parent
-  )
+              fluidPage(selectInput("variable", label = "Select your interest state(s)",
+                                    choices = c(levels(dat_long$State)), multiple = TRUE),
+                        box(
+                          id = "outputgraph",
+                          title = "The Trend of Average Reading Scores of Students From Selected States in 1998-2019",
+                          status = "primary",
+                          solidHeader = FALSE,
+                          width = 12,
+                          plotOutput("graph")
+                        ),
+                        box(
+                          id = "outputTableBox",
+                          title = "Average Reading Scores of Students From Selected States in 1998-2019",
+                          status = "primary",
+                          solidHeader = FALSE,
+                          width = 12,
+                          tableOutput("table"))
+                        )
+                        
+      )
+      #3rd tab item parent
+      )
+    )
 )
 
 server <- function(input, output, session) {
-  variable <- reactive({
-    get(input$variable, dat_long$State)
+  var_sel <- reactive({
+    input$variable
   })
   output$graph <- renderPlot({
-    longplot(variable)
+    longplot(var_sel())
   })
   output$table <- renderTable({
-    dat_long%>%
-      filter(State == "Alaska")
+    tab_se(var_sel())
   })
   
   map_df <- reactive({
