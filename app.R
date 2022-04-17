@@ -21,31 +21,34 @@ dat_long <- dat %>%
 dat_long <- within(dat_long,
                    c(State <- factor(State),
                      year <- factor(year),
-                     par <- factor(par, labels = c("est", "SE")))) %>%
-  mutate(state = tolower(str_replace_all(
-    str_replace_all(State, "[[:digit:]][[:punct:]]", ""), 
-    "[\\\\]", "")
-  ), 
-  abbr = state.abb[match(state, tolower(state.name))])
+                     par <- factor(par, labels = c("est", "SE")))) #%>%
 
 longplot <- function(variable){
   dat = dat_long %>% filter(par == "est", State %in% variable)
   ggplot(data = dat, aes(x = year, y = score, color = State, group = State)) +
     geom_line()
 }
-dat_map <- dat_long %>%
-  filter(!state %in% c("United States", 
-                       "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
-  merge(map_data("state") %>%
-          rename(state = region), 
-        ., by = "state", all.x = TRUE)
+
 long_tab <- dat_long %>%
   pivot_wider(names_from = "par", values_from = score) 
 colnames(long_tab) <- c("State", "Year", "Reading Score", "Standard Error")
+
 tab_se <- function(variable){
   long_tab %>% 
     filter(State %in% variable)
 }
+
+dat_clean <- dat_long %>%
+  mutate(state = tolower(str_replace_all(
+    str_replace_all(State, "[[:digit:]][[:punct:]]", ""),
+    "[\\\\]", "")
+  ),
+  abbr = state.abb[match(state, tolower(state.name))])
+
+dat_map <- dat_clean %>%
+  filter(!state %in% c("United States", 
+                       "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
+  merge(map_data("state") %>% rename(state = region), ., by = "state", all.x = TRUE)
 
 ############Shiny App###########################################################
 ui <- dashboardPage(
@@ -194,7 +197,7 @@ server <- function(input, output, session) {
     if (is.na(selected)) {
       data.frame(Details = "Select a state to view details. ")
     } else {
-      dat_long %>% filter(state == selected)
+      dat_clean %>% filter(state == selected)
     }
   })
 }
