@@ -20,17 +20,17 @@ dat <- read_excel("NAEP_read_dat.xls",  range = cell_rows(3:57), col_types = c("
 colnames(dat)[-1] <- sort(c(paste0(c(1998, 2002, seq(2003,2019, by = 2)), "_est"), paste0(c(1998, 2002, seq(2003,2019, by = 2)), "_SE")))
 dat <- dat[-1,]
 dat_long <- dat %>%
-  pivot_longer(!State, names_to = c("year","par"), names_sep = "_", values_to = "score")
-dat_long <- within(dat_long,
-                   c(State <- factor(State),
-                     year <- factor(year),
-                     par <- factor(par, labels = c("est", "SE")))) %>%
+  pivot_longer(!State, names_to = c("year","par"), names_sep = "_", values_to = "score") %>%
   mutate(State = (str_replace_all(
     str_replace_all(State, "[[:digit:]][[:punct:]]", ""),
     "[\\\\]", "")
   ),
   state = tolower(State), 
   abbr = state.abb[match(state, tolower(state.name))])
+dat_long <- within(dat_long,
+                   c(State <- factor(State),
+                     year <- factor(year),
+                     par <- factor(par, labels = c("est", "SE"))))
 
 longplot <- function(variable){
   dat = dat_long %>% filter(par == "est", State %in% variable)
@@ -39,6 +39,7 @@ longplot <- function(variable){
 }
 
 long_tab <- dat_long %>%
+  select(!c(state, abbr)) %>%
   pivot_wider(names_from = "par", values_from = score) 
 colnames(long_tab) <- c("State", "Year", "Reading Score", "Standard Error")
 
@@ -117,10 +118,25 @@ ui <- dashboardPage(
       ),
       tabItem(tabName = "heatmap",
               fluidPage(selectInput("year", label = "Year", 
-                                    choices = c(levels(dat_map$year))), 
-                        plotOutput("usmap", click = "plot_click"), 
+                                    choices = c(levels(dat_map$year))),
+                        selectInput("state", label = "State", 
+                                    choices = c(levels(dat_long$State))), 
+                        box(
+                          id = "output_usmap", 
+                          state = "primary", 
+                          solidHeader = FALSE, 
+                          width = 12, 
+                          plotOutput("usmap", click = "plot_click")
+                        ),
                         br(), 
-                        tableOutput("info"))
+                        box(
+                          id = "output_info", 
+                          state = "primary", 
+                          solidHeader = FALSE, 
+                          width = 12, 
+                          tableOutput("info")
+                        ), 
+                        textOutput("test"))
               #2nd tab item parent
       ), 
       tabItem(tabName = "longitudinal",
@@ -176,7 +192,7 @@ server <- function(input, output, session) {
   output$usmap <- renderPlot({
     ggplot(data = map_df(), aes(x = long, y = lat)) + 
       geom_polygon(aes(fill = score, group = group)) +
-      scale_fill_viridis(option = "G") +
+      scale_fill_viridis(option = "G", direction = -1) +
       geom_label(data = labels(), aes(long, lat, label = abbr), size = 3, 
                  label.padding = unit(.15, "lines"), 
                  alpha = .7) +
@@ -184,40 +200,44 @@ server <- function(input, output, session) {
       labs(title = paste0(
         "Average NAEP Reading Scale Score of 8th-grade Public School Students in ",
         input$year
-      )) + 
+      ), fill = "Score") + 
       theme(legend.position = "bottom",
             legend.key.width = unit(3, "cm"),
             legend.key.height = unit(.2, "cm"))
   })
   # stores reactive values from on-click
-  click_data <- reactiveValues(trigger = 0, x = NA, y = NA)
-  # observe the change in the reactive values from on-click
+  click_data <- reactiveValues(trigger = FALSE, x = NA, y = NA)
+  # triggered if user clicks on a valid state in the plot
   observe({
     req(input$plot_click)
-    isolate(click_data$trigger <- 1)
+    click_data$trigger <- TRUE
     click_data$x <- input$plot_click$x
     click_data$y <- input$plot_click$y
   })
+  # triggered if user changes the state input 
+  observeEvent(input$state, {
+    click_data$trigger <- FALSE
+  })
   # create a table for the selected State
   output$info <- renderTable({
-    selected <- ifelse(click_data$trigger,
-                       latlong2(data.frame(x = click_data$x,
-                                           y = click_data$y)),
-                       NA)
-    # if no on-click acticity, prompt users to select a State
-    if (is.na(selected)) {
-      data.frame(Details = "Select a state to view details. ")
-    } else {
-      dat_long %>%
-        filter(state == selected) %>%
-        pivot_wider(names_from = par, values_from = score) %>%
-        select(!c(state, abbr)) %>%
-        mutate(`Confidence Interval` = paste0(
-          "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
-        )) %>%
-        rename(Year = year, Score = est, `Standard Error` = SE,) %>%
-        mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
-    }
+    # if no on-click activity or clicked on an invalid location, return NA
+    clicked <- ifelse(
+      click_data$trigger,
+      latlong2(data.frame(x = click_data$x, y = click_data$y)), NA
+    )
+    # if clicked is NA, return the selected state from input
+    selected <- ifelse(is.na(clicked),
+                       tolower(input$state), clicked)
+    # table with confidence intervals
+    dat_long %>%
+      filter(year == input$year, state == selected) %>%
+      pivot_wider(names_from = par, values_from = score) %>%
+      select(!c(state, abbr)) %>%
+      mutate(`Confidence Interval` = paste0(
+        "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
+      )) %>%
+      rename(Year = year, Score = est, `Standard Error` = SE) %>%
+      mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
   })
 }
 
