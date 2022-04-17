@@ -2,6 +2,7 @@ library(shiny)
 library(tidyverse)
 library(pivottabler)
 library(shinydashboard)
+library(dashboardthemes)
 library(tidyverse)
 library(maps)
 library(usmap)
@@ -75,6 +76,9 @@ ui <- dashboardPage(
                               icon = icon("dashboard"))
                    )),
   dashboardBody(
+    shinyDashboardThemes(
+      theme = "blue_gradient"
+    ), 
     tabItems(
       tabItem(tabName = "Reference",
               fluidPage(
