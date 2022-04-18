@@ -155,9 +155,9 @@ ui <- dashboardPage(
                   status = "primary",
                   width = 12,
                   solidHeader = FALSE,
-                  p("The data for the contest is from the Digest of Education Statistics 
-                    from the National Center for Education Statistics  
-                    (https://nces.ed.gov/programs/digest/current_tables.asp). "
+                  p("U.S. Department of Education, National Center for Education Statistics, National Assessment of Educational Progress (NAEP), 
+                    1998, 2002, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017, and 2019 Reading Assessments,
+                    retrieved November 3, 2019, from the Main NAEP Data Explorer (https://nces.ed.gov/nationsreportcard/naepdata/)."
                   )),
                 
                 box(
