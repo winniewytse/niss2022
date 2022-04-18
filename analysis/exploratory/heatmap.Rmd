@@ -19,7 +19,7 @@ library(fiftystater)
 ```
 
 ```{r}
-dat <- read_excel(here::here("NAEP_read_dat.xls"),
+dat <- read_excel(here::here("shinyapp/NAEP_read_dat.xls"),
                   range = cell_rows(3:57),
                   col_types = c("guess", rep("numeric", 22))) %>%
   as.data.frame()
@@ -129,14 +129,16 @@ selected <- latlong2(data.frame(x = xcor, y = ycor))
 
 ```{r}
 dat_long %>%
-  filter(state == selected) %>%
+  filter(state == "alaska", year == 1998) %>%
   pivot_wider(names_from = par, values_from = score) %>%
-  select(!c(state, abbr)) %>%
-    mutate(`Confidence Interval` = paste0(
-    "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
-  )) %>%
-  rename(Year = year, Score = est, `Standard Error` = SE,) %>%
-  mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
+  mutate(ci_lo = est - 2 * SE, 
+         ci_up = est + 2 * SE) %>%
+  mutate_at(vars(est:ci_up), ~ as.character(round(., 2))) %>%
+  replace(is.na(.), "-") %>%
+  mutate(`Score (SE)` = paste0(est, " (", SE, ")"), 
+         `Confidence Interval` = paste0("[", ci_lo, ", ", ci_up, "]")) %>%
+  select(!c(state, abbr, est, SE, ci_lo, ci_up)) %>%
+  rename(Year = year)
 ```
 
 
