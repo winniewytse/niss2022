@@ -1,0 +1,22 @@
+---
+title: "NISS submission"
+author: "Yichi Zhang and Wing-Yee (Winnie) Tse"
+Institution : "University of Southern California"
+date: '2022-04-18'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## URL to R shiny
+
+Here is the link to our Rshiny web application: https://uncover-data-stories.shinyapps.io/shinyapp/
+
+## Educational Interest and Interpretation
+
+The data set we used examines the average National Assessment of Educational Progress (NAEP) reading scale score of 8th grade students in public schools in the United States. It includes the nationally representative assessment results from 1998 to 2019. Our Interactive R shiny application displays the average reading scale scores and associated confidence intervals by states, and visually depicts the trend of reading scores in the last two decades. Our app allows users to make direct comparisons of interested states and trace students' performance on the NAEP reading scale over time. 
+
+
+## Accessibility Statement
