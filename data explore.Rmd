@@ -47,14 +47,49 @@ longplot(c("Alaska", "Nebraska"))
 dat[dat$State == "Alaska",]
 dat_long %>%
   pivot_wider(names_from = "par", values_from = score) %>%
-  knitr::kable()
+  knitr::kable() 
+dat_long %>%
+  filter(State %in% "Alaska") %>%
+  pivot_wider(names_from = "par", values_from = score, )
 tab_se <- function(variable){
-  long_tab <- dat_long %>%
-  pivot_wider(names_from = "par", values_from = score) 
-  tab_se %>% 
-    filter(State == variable)%>%
-    knitr::kable()
+  dat_long %>%
+  pivot_wider(names_from = "par", values_from = score)%>%
+  mutate_if(is.numeric, round, digits=2)%>%
+  mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+  mutate(score = paste0(est, "(", SE, ")"))%>%
+  select(State, year, score) %>%
+  filter(year < 2010) %>%
+  pivot_wider(names_from = "year", values_from = score)%>%
+  filter(State == variable)%>%
+  knitr::kable(digits = 2)
+  dat_long %>%
+  pivot_wider(names_from = "par", values_from = score)%>%
+  mutate_if(is.numeric, round, digits=2)%>%
+  mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+  mutate(score = paste0(est, "(", SE, ")"))%>%
+  select(State, year, score) %>%
+  filter(year > 2010) %>%
+  pivot_wider(names_from = "year", values_from = score)%>%
+  filter(State == variable)%>%
+  knitr::kable(digits = 2)
 }
+options(knitr.kable.NA  = ' ')
+dat_long %>%
+  pivot_wider(names_from = "par", values_from = score)%>%
+  mutate_if(is.numeric, round, digits=2)%>%
+  mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+  mutate(score = paste0(est, "(", SE, ")"))%>%
+  select(State, year, score) %>%
+  filter(year < 2010) %>%
+  pivot_wider(names_from = "year", values_from = score)%>%
+  knitr::kable(digits = 2)
+dat_long %>%
+  pivot_wider(names_from = "par", values_from = score)%>%
+  mutate(score = paste0(est, "(", SE, ")"))%>%
+  select(State, year, score) %>%
+  filter(year > 2010) %>%
+  pivot_wider(names_from = "year", values_from = score)%>%
+  knitr::kable(digits = 2)
 ```
 
 

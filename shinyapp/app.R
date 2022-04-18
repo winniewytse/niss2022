@@ -1,6 +1,5 @@
 library(shiny)
 library(tidyverse)
-library(pivottabler)
 library(shinydashboard)
 library(dashboardthemes)
 library(tidyverse)
@@ -45,6 +44,31 @@ long_tab <- dat_long %>%
 colnames(long_tab) <- c("State", "Year", "Reading Score", "Standard Error")
 
 tab_se <- function(variable){
+  dat_long %>%
+    select(!c(state, abbr)) %>%
+    pivot_wider(names_from = "par", values_from = score)%>%
+    mutate_if(is.numeric, round, digits=2)%>%
+    mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+    mutate(score = paste0(est, "(", SE, ")"))%>%
+    select(State, year, score) %>%
+    filter(year < 2010) %>%
+    pivot_wider(names_from = "year", values_from = score)%>%
+    filter(State %in% variable)%>%
+    knitr::kable(digits = 2)
+  dat_long %>%
+    select(!c(state, abbr)) %>%
+    pivot_wider(names_from = "par", values_from = score)%>%
+    mutate_if(is.numeric, round, digits=2)%>%
+    mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+    mutate(score = paste0(est, "(", SE, ")"))%>%
+    select(State, year, score) %>%
+    filter(year > 2010) %>%
+    pivot_wider(names_from = "year", values_from = score)%>%
+    filter(State %in% variable)%>%
+    knitr::kable(digits = 2)
+}
+
+tab_se <- function(variable){
   long_tab %>% 
     filter(State %in% variable)
 }
@@ -67,7 +91,7 @@ ui <- dashboardPage(
                        icon = icon("dashboard")
                      ),
                      menuItem(
-                       "Across the States",
+                       "Across States",
                        tabName = "heatmap",
                        icon = icon("dashboard")
                      ),
@@ -144,7 +168,7 @@ ui <- dashboardPage(
               #2nd tab item parent
       ), 
       tabItem(tabName = "longitudinal",
-              fluidPage(selectInput("variable", label = "Select your interest state(s)",
+              fluidPage(selectInput("variable", label = "Select your interested state(s)/area",
                                     choices = c(levels(dat_long$State)), multiple = TRUE),
                         box(
                           id = "outputgraph",
