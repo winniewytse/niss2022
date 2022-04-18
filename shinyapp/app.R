@@ -7,13 +7,13 @@ library(maps)
 library(usmap)
 library(readxl)
 library(viridis)
-# remotes::install_github("JVAdams/jvamisc")
+#remotes::install_github("JVAdams/jvamisc")
 library(jvamisc)
-# devtools::install_github("wmurphyrd/fiftystater")
+#devtools::install_github("wmurphyrd/fiftystater")
 library(fiftystater)
 
 ############Import Data#########################################################
-dat <- read_excel("NAEP_read_dat.xls",  range = cell_rows(3:57), col_types = c("guess", rep("numeric",22)))%>%
+dat <- read_excel(here::here("NAEP_read_dat.xls"),  range = cell_rows(3:57), col_types = c("guess", rep("numeric",22)))%>%
   as.data.frame()
 # dat[1, ] <- c("State", rep(c("Estimates", "SE"), 11))
 # colnames(dat) <- c("State", rep(c(1998, 2002, seq(2003,2019, by = 2)), each = 2))
@@ -45,7 +45,7 @@ long_tab <- dat_long %>%
   pivot_wider(names_from = "par", values_from = score) 
 colnames(long_tab) <- c("State", "Year", "Reading Score", "Standard Error")
 
-tab_se <- function(variable){
+tab_se1 <- function(variable){
   dat_long %>%
     select(!c(state, abbr)) %>%
     pivot_wider(names_from = "par", values_from = score)%>%
@@ -53,27 +53,37 @@ tab_se <- function(variable){
     mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
     mutate(score = paste0(est, "(", SE, ")"))%>%
     select(State, year, score) %>%
-    filter(year < 2010) %>%
+    # filter(year %in% c(1998, 2002, 2003, 2005, 2007, 2009)) %>%
     pivot_wider(names_from = "year", values_from = score)%>%
-    filter(State %in% variable)%>%
-    knitr::kable(digits = 2)
-  dat_long %>%
-    select(!c(state, abbr)) %>%
-    pivot_wider(names_from = "par", values_from = score)%>%
-    mutate_if(is.numeric, round, digits=2)%>%
-    mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
-    mutate(score = paste0(est, "(", SE, ")"))%>%
-    select(State, year, score) %>%
-    filter(year > 2010) %>%
-    pivot_wider(names_from = "year", values_from = score)%>%
-    filter(State %in% variable)%>%
-    knitr::kable(digits = 2)
-}
-
-tab_se <- function(variable){
-  long_tab %>% 
     filter(State %in% variable)
+  # dat_long %>%
+  #   select(!c(state, abbr)) %>%
+  #   pivot_wider(names_from = "par", values_from = score)%>%
+  #   mutate_if(is.numeric, round, digits=2)%>%
+  #   mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+  #   mutate(score = paste0(est, "(", SE, ")"))%>%
+  #   select(State, year, score) %>%
+  #   filter(year %in% c(2011, 2013, 2015, 2017)) %>%
+  #   pivot_wider(names_from = "year", values_from = score)%>%
+  #   filter(State %in% variable)
 }
+# tab_se2 <- function(variable){
+#   dat_long %>%
+#     select(!c(state, abbr)) %>%
+#     pivot_wider(names_from = "par", values_from = score)%>%
+#     mutate_if(is.numeric, round, digits=2)%>%
+#     mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
+#     mutate(score = paste0(est, "(", SE, ")"))%>%
+#     select(State, year, score) %>%
+#     filter(year %in% c(2011, 2013, 2015, 2017)) %>%
+#     pivot_wider(names_from = "year", values_from = score)%>%
+#     filter(State %in% variable)
+# }
+
+# tab_se <- function(variable){
+#   long_tab %>% 
+#     filter(State %in% variable)
+# }
 
 dat_map <- dat_long %>%
   filter(!State %in% c("United States", 
@@ -204,7 +214,8 @@ ui <- dashboardPage(
                           status = "primary",
                           solidHeader = FALSE,
                           width = 12,
-                          tableOutput("table"))
+                          div(tableOutput("table")), style = "font-size :80%",
+                          p("Note: '-' reprents NA"))
               )
               
       )
@@ -221,7 +232,7 @@ server <- function(input, output, session) {
     longplot(var_sel())
   })
   output$table <- renderTable({
-    tab_se(var_sel())
+    tab_se1(var_sel())
   })
   
   #### Heatmap ####
