@@ -36,7 +36,9 @@ dat_long <- within(dat_long,
 longplot <- function(variable){
   dat = dat_long %>% filter(par == "est", State %in% variable)
   ggplot(data = dat, aes(x = year, y = score, color = State, group = State)) +
-    geom_line()
+    geom_line() +
+    theme_bw() +
+    labs(x = "Year", y = "Score", color = "State/Area(s)")
 }
 
 long_tab <- dat_long %>%
@@ -54,12 +56,23 @@ dat_map <- dat_long %>%
                        "Department of Defense\n   Education\n   Activity (DoDEA)")) %>%
   right_join(fifty_states %>% rename(state = id), by = "state", all.x = TRUE)
 
+which_state <- function(long, lat) {
+  if (long > -123.4745 & long < -112.6042 & lat > 23.3612 & lat < 30.7632) {
+    state <- "alaska"
+  } else if (long > -111.7076 & long < -103.4148 & lat > 23.5204 & lat < 28.0571) {
+    state <- "hawaii"
+  } else {
+    state <- latlong2(data.frame(x = long, y = lat))
+  }
+  return(state)
+}
+
 ############Shiny App###########################################################
 ui <- dashboardPage(
   dashboardHeader(title = "National Assessment of Educational Progress (NAEP) 
                   reading scale score of 8th-grade public school students",
                   titleWidth = 400),
-  dashboardSidebar(width = 150,
+  dashboardSidebar(width = 200,
                    sidebarMenu(
                      menuItem(
                        "Instruction",
@@ -67,7 +80,7 @@ ui <- dashboardPage(
                        icon = icon("dashboard")
                      ),
                      menuItem(
-                       "Across the States",
+                       "Across States",
                        tabName = "heatmap",
                        icon = icon("dashboard")
                      ),
@@ -83,19 +96,24 @@ ui <- dashboardPage(
       tabItem(tabName = "Reference",
               fluidPage(
                 box(
-                  title = "Instruction",
+                  title = "Instructions",
                   status = "primary",
                   width = 12,
                   solidHeader = FALSE,
                   p(
-                    "This app is intended to show the average National Assessment of
-                    Educational Progress (NAEP) reading scale score of 8th-grade
-                    public school students by state. This dataset covers the time from 
-                    1998 to 2019. The first page shows students' reading scale scores by a heat map, 
-                    which you can click on the specific state and obtain the average reading scores of students 
-                    in that state. On the second page, you can select you interested states (single or multiple), 
-                    and view the trend over time. You will get a line graph and a table that captures both the 
-                    scores its standard errors."
+                    "This app is intended to show the average National Assessment of 
+                    Educational Progress (NAEP) reading scale score of 8th-grade public 
+                    school students by state. This dataset covers the years from 1998 to 2019."
+                  ), 
+                  p(
+                    'The "Across States" tab shows students" reading scale scores by a heat map of 
+                    the United States, where you can click on a specific State and obtain 
+                    details of the reading scores of students in that State. '
+                  ), 
+                  p(
+                    'On the "Across Time" tab, you can select your interested states (single or multiple) 
+                    and view the trend over time. You will get a line graph and a table that captures 
+                    both the scores and standard errors.'
                   )),
                 
                 box(
@@ -130,7 +148,9 @@ ui <- dashboardPage(
                           state = "primary", 
                           solidHeader = FALSE, 
                           width = 12, 
-                          plotOutput("usmap", click = "plot_click")
+                          plotOutput("usmap", click = "plot_click", 
+                                     height = "550px"), 
+                          h6('* Areas shaded in gray had missing values.')
                         ),
                         br(), 
                         box(
@@ -138,9 +158,9 @@ ui <- dashboardPage(
                           state = "primary", 
                           solidHeader = FALSE, 
                           width = 12, 
-                          tableOutput("info")
-                        ), 
-                        textOutput("test"))
+                          tableOutput("info"), 
+                          h6('* A dash line indicates a missing value.')
+                        ))
               #2nd tab item parent
       ), 
       tabItem(tabName = "longitudinal",
@@ -225,10 +245,8 @@ server <- function(input, output, session) {
   # create a table for the selected State
   output$info <- renderTable({
     # if no on-click activity or clicked on an invalid location, return NA
-    clicked <- ifelse(
-      click_data$trigger,
-      latlong2(data.frame(x = click_data$x, y = click_data$y)), NA
-    )
+    clicked <- ifelse(click_data$trigger,
+                      which_state(click_data$x, click_data$y), NA)
     # if clicked is NA, return the selected state from input
     selected <- ifelse(is.na(clicked),
                        tolower(input$state), clicked)
@@ -236,12 +254,14 @@ server <- function(input, output, session) {
     dat_long %>%
       filter(year == input$year, state == selected) %>%
       pivot_wider(names_from = par, values_from = score) %>%
-      select(!c(state, abbr)) %>%
-      mutate(`Confidence Interval` = paste0(
-        "[", round(est - 2 * SE, 2), ", ", round(est + 2 * SE, 2), "]"
-      )) %>%
-      rename(Year = year, Score = est, `Standard Error` = SE) %>%
-      mutate_at(vars(Score:`Standard Error`), ~ round(., 2))
+      mutate(ci_lo = est - 2 * SE, 
+             ci_up = est + 2 * SE) %>%
+      mutate_at(vars(est:ci_up), ~ as.character(round(., 2))) %>%
+      replace(is.na(.), "-") %>%
+      mutate(`Score (SE)` = paste0(est, " (", SE, ")"), 
+             `Confidence Interval` = paste0("[", ci_lo, ", ", ci_up, "]")) %>%
+      select(!c(state, abbr, est, SE, ci_lo, ci_up)) %>%
+      rename(Year = year)
   })
 }
 
