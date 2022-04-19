@@ -1,0 +1,11 @@
+name: NAEP-Reading-Scores
+title:
+username:
+account: uncover-data-stories
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6118680
+bundleId: 5812249
+url: https://uncover-data-stories.shinyapps.io/NAEP-Reading-Scores/
+when: 1650340982.71871
+lastSyncTime: 1650340982.71891

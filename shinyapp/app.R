@@ -51,7 +51,7 @@ tab_se1 <- function(variable){
     pivot_wider(names_from = "par", values_from = score)%>%
     mutate_if(is.numeric, round, digits=2)%>%
     mutate_at(vars(c(est, SE)), ~ replace(., is.na(.), "-"))%>%
-    mutate(score = paste0(est, "(", SE, ")"))%>%
+    mutate(score = paste0(est, " (", SE, ")"))%>%
     select(State, year, score) %>%
     # filter(year %in% c(1998, 2002, 2003, 2005, 2007, 2009)) %>%
     pivot_wider(names_from = "year", values_from = score)%>%
@@ -184,7 +184,7 @@ ui <- dashboardPage(
                           width = 12, 
                           plotOutput("usmap", click = "plot_click", 
                                      height = "550px"), 
-                          h6('* Areas shaded in gray had missing values.')
+                          p('* Areas shaded in gray had missing values.')
                         ),
                         br(), 
                         box(
@@ -193,13 +193,18 @@ ui <- dashboardPage(
                           solidHeader = FALSE, 
                           width = 12, 
                           tableOutput("info"), 
-                          h6('* A dash line indicates a missing value.')
+                          p('* A dash line represents a missing value.')
                         ))
               #2nd tab item parent
       ), 
       tabItem(tabName = "longitudinal",
               fluidPage(selectInput("variable", label = "Select your interested state(s)/area",
-                                    choices = c(levels(dat_long$State)), multiple = TRUE),
+                                    choices = c(levels(dat_long$State)), multiple = TRUE, 
+                                    selected = "Alabama", width = "100%"),
+                        actionButton("reset", "Reset Inputs"), 
+                        actionButton("all", "Select All"), 
+                        br(),
+                        br(), 
                         box(
                           id = "outputgraph",
                           title = "The Trend of Average Reading Scores of Students From Selected States in 1998-2019",
@@ -214,8 +219,9 @@ ui <- dashboardPage(
                           status = "primary",
                           solidHeader = FALSE,
                           width = 12,
+                          p("Reading Score (Standard Error)"), 
                           div(tableOutput("table")), style = "font-size :80%",
-                          p("Note: '-' reprents NA"))
+                          p("Note: A dash line represents a missing value. "))
               )
               
       )
@@ -233,6 +239,12 @@ server <- function(input, output, session) {
   })
   output$table <- renderTable({
     tab_se1(var_sel())
+  })
+  observeEvent(input$reset, {
+    updateSelectInput(session, "variable", selected = "Alabama")
+  })
+  observeEvent(input$all, {
+    updateSelectInput(session, "variable", selected = c(levels(dat_long$State)))
   })
   
   #### Heatmap ####
