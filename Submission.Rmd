@@ -20,3 +20,7 @@ The data set we used examines the average National Assessment of Educational Pro
 
 
 ## Accessibility Statement
+
+The Shiny application can be viewed across web browsers and electronic devices, including mobile phones, tablets, and computers. We provide instructions for using the application in the front page, along with our contact methods for inquiries. Despite our efforts to make the application as accessible as possible, it has two limitations. First, the content is written English and is exclusive to English-readers. Second, images in the applications do not come with text descriptions, and we supplement a table that summarizes the reading scores and standard errors for the selected State(s) and year(s). 
+
+
