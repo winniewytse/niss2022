@@ -1,6 +1,6 @@
 ---
-title: "NISS submission"
-author: "Yichi Zhang and Wing-Yee (Winnie) Tse"
+title: "NISS Submission"
+author: "Yichi Zhang and Winnie Wing-Yee Tse"
 Institution : "University of Southern California"
 date: '2022-04-18'
 output: pdf_document
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## URL to R shiny
 
-Here is the link to our Rshiny web application: https://uncover-data-stories.shinyapps.io/shinyapp/
+Here is the link to our Rshiny web application: https://uncover-data-stories.shinyapps.io/NAEP-Reading-Scores/
 
 ## Educational Interest and Interpretation
 
