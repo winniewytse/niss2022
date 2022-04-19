@@ -5,7 +5,9 @@ account: uncover-data-stories
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 6108875
-bundleId: 5807933
+bundleId: 5812227
 url: https://uncover-data-stories.shinyapps.io/shinyapp/
-when: 1650237428.84339
-lastSyncTime: 1650237428.84341
+when: 1650340171.72091
+lastSyncTime: 1650340171.72092
+asMultiple: FALSE
+asStatic: FALSE
